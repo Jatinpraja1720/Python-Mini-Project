@@ -1,0 +1,289 @@
+
+import tkinter as tk
+from tkinter import messagebox
+import json
+
+FILE_NAME = "tasks.json"
+
+# List to store tasks
+tasks = []
+
+
+# Function to load tasks from file
+def load_tasks():
+    global tasks
+
+    try:
+        with open(FILE_NAME, "r", encoding="utf-8") as file:
+            tasks = json.load(file)
+
+        if not isinstance(tasks, list):
+            tasks = []
+
+    except (FileNotFoundError, json.JSONDecodeError):
+        tasks = []
+
+
+# Function to save tasks to file
+def save_tasks():
+    try:
+        with open(FILE_NAME, "w", encoding="utf-8") as file:
+            json.dump(tasks, file, indent=4, ensure_ascii=False)
+    except OSError as error:
+        messagebox.showerror("File Error", str(error))
+
+
+# Function to display tasks
+def display_tasks():
+    task_list.delete(0, tk.END)
+
+    for index, task in enumerate(tasks):
+        if task["completed"]:
+            text = "✓  " + task["title"] + "  [Completed]"
+            task_list.insert(tk.END, text)
+            task_list.itemconfig(index, fg="#16a34a")
+        else:
+            text = "○  " + task["title"] + "  [Pending]"
+            task_list.insert(tk.END, text)
+            task_list.itemconfig(index, fg="#26324a")
+
+    total = len(tasks)
+    completed = sum(1 for task in tasks if task["completed"])
+    pending = total - completed
+
+    total_label.config(text=f"Total Tasks: {total}")
+    status_label.config(
+        text=f"Completed: {completed}  |  Pending: {pending}"
+    )
+
+
+# Function to add a task
+def add_task():
+    title = task_entry.get().strip()
+
+    if not title:
+        messagebox.showwarning("Warning", "Please enter a task!")
+        return
+
+    tasks.append({
+        "title": title,
+        "completed": False
+    })
+
+    task_entry.delete(0, tk.END)
+
+    save_tasks()
+    display_tasks()
+
+
+# Function to mark a task complete or pending
+def complete_task():
+    selected = task_list.curselection()
+
+    if not selected:
+        messagebox.showwarning("Warning", "Please select a task!")
+        return
+
+    index = selected[0]
+    tasks[index]["completed"] = not tasks[index]["completed"]
+
+    save_tasks()
+    display_tasks()
+
+
+# Function to delete a task
+def delete_task():
+    selected = task_list.curselection()
+
+    if not selected:
+        messagebox.showwarning("Warning", "Please select a task!")
+        return
+
+    index = selected[0]
+
+    if messagebox.askyesno("Confirm", "Do you want to delete this task?"):
+        tasks.pop(index)
+        save_tasks()
+        display_tasks()
+
+
+# Create the main GUI window
+root = tk.Tk()
+root.title("TaskFlow - To-Do List")
+root.geometry("650x620")
+root.configure(bg="#f1f5f9")
+root.resizable(False, False)
+
+
+# Header section
+header = tk.Frame(root, bg="#4338ca", height=115)
+header.pack(fill="x")
+header.pack_propagate(False)
+
+tk.Label(
+    header,
+    text="MY TO-DO LIST",
+    font=("Arial", 25, "bold"),
+    bg="#4338ca",
+    fg="white"
+).pack(pady=(22, 5))
+
+tk.Label(
+    header,
+    text="Organize your day, one task at a time.",
+    font=("Arial", 11),
+    bg="#4338ca",
+    fg="#e0e7ff"
+).pack()
+
+
+# Main content section
+main = tk.Frame(root, bg="#f1f5f9", padx=28, pady=20)
+main.pack(fill="both", expand=True)
+
+tk.Label(
+    main,
+    text="Add a New Task",
+    font=("Arial", 15, "bold"),
+    bg="#f1f5f9",
+    fg="#1e293b"
+).pack(anchor="w", pady=(0, 10))
+
+
+# Task input section
+entry_frame = tk.Frame(main, bg="#f1f5f9")
+entry_frame.pack(fill="x", pady=(0, 20))
+
+task_entry = tk.Entry(
+    entry_frame,
+    font=("Arial", 12),
+    relief="solid",
+    bd=1
+)
+
+task_entry.pack(
+    side="left",
+    fill="x",
+    expand=True,
+    ipady=10,
+    padx=(0, 10)
+)
+
+tk.Button(
+    entry_frame,
+    text="+ Add Task",
+    command=add_task,
+    font=("Arial", 10, "bold"),
+    bg="#4338ca",
+    fg="white",
+    activebackground="#3730a3",
+    activeforeground="white",
+    relief="flat",
+    padx=15,
+    pady=9,
+    cursor="hand2"
+).pack(side="right")
+
+
+# Task list heading
+heading = tk.Frame(main, bg="#f1f5f9")
+heading.pack(fill="x", pady=(0, 10))
+
+tk.Label(
+    heading,
+    text="Your Tasks",
+    font=("Arial", 15, "bold"),
+    bg="#f1f5f9",
+    fg="#1e293b"
+).pack(side="left")
+
+total_label = tk.Label(
+    heading,
+    text="Total Tasks: 0",
+    font=("Arial", 10),
+    bg="#f1f5f9",
+    fg="#64748b"
+)
+
+total_label.pack(side="right")
+
+
+# Task list with scrollbar
+list_frame = tk.Frame(main, bg="white", bd=1, relief="solid")
+list_frame.pack(fill="both", expand=True)
+
+scrollbar = tk.Scrollbar(list_frame)
+scrollbar.pack(side="right", fill="y")
+
+task_list = tk.Listbox(
+    list_frame,
+    font=("Arial", 12),
+    bg="white",
+    selectbackground="#c7d2fe",
+    selectforeground="#1e1b4b",
+    activestyle="none",
+    bd=0,
+    highlightthickness=0,
+    yscrollcommand=scrollbar.set
+)
+
+task_list.pack(fill="both", expand=True, padx=8, pady=8)
+scrollbar.config(command=task_list.yview)
+
+
+# Action buttons
+button_frame = tk.Frame(main, bg="#f1f5f9")
+button_frame.pack(fill="x", pady=15)
+
+tk.Button(
+    button_frame,
+    text="✓  Complete / Undo",
+    command=complete_task,
+    font=("Arial", 10, "bold"),
+    bg="#16a34a",
+    fg="white",
+    activebackground="#15803d",
+    activeforeground="white",
+    relief="flat",
+    padx=12,
+    pady=10,
+    cursor="hand2"
+).pack(side="left")
+
+tk.Button(
+    button_frame,
+    text="Delete Task",
+    command=delete_task,
+    font=("Arial", 10, "bold"),
+    bg="#dc2626",
+    fg="white",
+    activebackground="#b91c1c",
+    activeforeground="white",
+    relief="flat",
+    padx=15,
+    pady=10,
+    cursor="hand2"
+).pack(side="right")
+
+
+# Task status
+status_label = tk.Label(
+    main,
+    text="Completed: 0  |  Pending: 0",
+    font=("Arial", 10, "bold"),
+    bg="#f1f5f9",
+    fg="#475569"
+)
+
+status_label.pack(anchor="w", pady=(0, 5))
+
+
+# Load saved tasks and display them
+load_tasks()
+display_tasks()
+task_entry.focus_set()
+
+
+# Start the application
+root.mainloop()
+
